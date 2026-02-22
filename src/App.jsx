@@ -4,6 +4,7 @@ import {
   AlertCircle,
   ArrowRight,
   ChevronRight,
+  Clock3,
   Database,
   Droplets,
   FileDown,
@@ -19,6 +20,7 @@ import {
   Sun,
   Target,
   Trash2,
+  RotateCcw,
   Unlock,
   User,
   UserCheck,
@@ -192,6 +194,10 @@ export default function App() {
   const [cloudSaving, setCloudSaving] = useState(false);
   const [cloudMessage, setCloudMessage] = useState("");
   const [cloudDataColumn, setCloudDataColumn] = useState("payload");
+  const [versionesCloud, setVersionesCloud] = useState([]);
+  const [versionesLoading, setVersionesLoading] = useState(false);
+  const [versionesMessage, setVersionesMessage] = useState("");
+  const [versionDataColumn, setVersionDataColumn] = useState("payload");
 
   const formatoCOP = useMemo(() => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }), []);
 
@@ -236,6 +242,97 @@ export default function App() {
     if (!error?.message) return false;
     const msg = error.message.toLowerCase();
     return msg.includes(`column "${col}"`) || msg.includes(`column ${col}`);
+  };
+
+  const normalizeVersionRow = (row) => {
+    const candidatePayload = row?.payload ?? row?.data ?? null;
+    const payload = candidatePayload && typeof candidatePayload === "object" ? candidatePayload : null;
+    return {
+      id: row?.id,
+      simulacionId: row?.simulacion_id,
+      payload,
+      createdAt: row?.created_at || null
+    };
+  };
+
+  const detectVersionPayloadColumn = (rows) => {
+    const first = Array.isArray(rows) ? rows[0] : null;
+    if (!first) return versionDataColumn;
+    if (Object.prototype.hasOwnProperty.call(first, "payload")) return "payload";
+    if (Object.prototype.hasOwnProperty.call(first, "data")) return "data";
+    return versionDataColumn;
+  };
+
+  const loadVersionesCloud = async (simulacionId) => {
+    if (!simulacionId) {
+      setVersionesCloud([]);
+      setVersionesMessage("");
+      return;
+    }
+
+    setVersionesLoading(true);
+    setVersionesMessage("");
+
+    const { data, error } = await supabase
+      .from("simulacion_versiones")
+      .select("*")
+      .eq("simulacion_id", simulacionId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) {
+      setVersionesLoading(false);
+      setVersionesCloud([]);
+      setVersionesMessage("No se pudo cargar historial de versiones.");
+      console.error("Error al listar versiones", error);
+      return;
+    }
+
+    const column = detectVersionPayloadColumn(data);
+    setVersionDataColumn(column);
+
+    const normalized = (data || []).map(normalizeVersionRow).filter((row) => row.id);
+    setVersionesCloud(normalized);
+    setVersionesLoading(false);
+  };
+
+  const createVersionSnapshot = async (simulacionId, payload) => {
+    if (!simulacionId) return;
+
+    const persistWithColumn = async (columnName) => {
+      const row = { simulacion_id: simulacionId, [columnName]: payload };
+      if (userId) row.user_id = userId;
+      return supabase.from("simulacion_versiones").insert(row).select("id").single();
+    };
+
+    let column = versionDataColumn;
+    let result = await persistWithColumn(column);
+    if (result.error && (isMissingColumnError(result.error, column) || result.error.code === "PGRST204")) {
+      const alt = column === "payload" ? "data" : "payload";
+      const retry = await persistWithColumn(alt);
+      if (!retry.error) {
+        column = alt;
+        result = retry;
+      }
+    }
+
+    if (result.error) {
+      console.error("Error al crear version", result.error);
+      setVersionesMessage("No se pudo crear snapshot de version.");
+      return;
+    }
+
+    setVersionDataColumn(column);
+  };
+
+  const restoreVersion = (versionId) => {
+    const version = versionesCloud.find((v) => String(v.id) === String(versionId));
+    if (!version?.payload) {
+      setVersionesMessage("La version seleccionada no contiene datos.");
+      return;
+    }
+    hydrateState(version.payload);
+    setVersionesMessage("Version restaurada.");
   };
 
   const loadSimulacionesCloud = async () => {
@@ -303,8 +400,11 @@ export default function App() {
     }
 
     setCloudDataColumn(column);
-    setSimulacionSeleccionadaId(result.data?.id ? String(result.data.id) : simulacionSeleccionadaId);
+    const savedId = result.data?.id ? String(result.data.id) : simulacionSeleccionadaId;
+    setSimulacionSeleccionadaId(savedId);
+    await createVersionSnapshot(savedId, payloadActual);
     await loadSimulacionesCloud();
+    await loadVersionesCloud(savedId);
     setCloudSaving(false);
     setCloudMessage("Simulacion guardada en la nube.");
   };
@@ -321,6 +421,7 @@ export default function App() {
     }
     setNombreSimulacion(selected.nombre);
     hydrateState(selected.payload);
+    loadVersionesCloud(selected.id);
     setCloudMessage(`Simulacion cargada: ${selected.nombre}`);
   };
 
@@ -344,6 +445,8 @@ export default function App() {
     }
 
     setSimulacionSeleccionadaId("");
+    setVersionesCloud([]);
+    setVersionesMessage("");
     await loadSimulacionesCloud();
     setCloudMessage("Simulacion eliminada.");
   };
@@ -351,6 +454,8 @@ export default function App() {
   const nuevaSimulacion = () => {
     setSimulacionSeleccionadaId("");
     setNombreSimulacion("");
+    setVersionesCloud([]);
+    setVersionesMessage("");
     hydrateState({ arriendo: "", nominaFija: "", nominaOcasional: "", luz: "", agua: "", gas: "", otros: "", costoProduccionPlato: "10000", foodCost: 0.35, ventasRealesMes: "", modoEstres: false, caidaVentas: 30 });
     setCloudMessage("Nueva simulacion en blanco.");
   };
@@ -406,6 +511,8 @@ export default function App() {
       setSimulacionesCloud([]);
       setSimulacionSeleccionadaId("");
       setNombreSimulacion("");
+      setVersionesCloud([]);
+      setVersionesMessage("");
       return;
     }
     loadSimulacionesCloud();
@@ -470,6 +577,44 @@ export default function App() {
           </div>
 
           {cloudMessage && <p className="mt-3 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">{cloudMessage}</p>}
+
+          {simulacionSeleccionadaId && (
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Historial de versiones</p>
+                <button
+                  onClick={() => loadVersionesCloud(simulacionSeleccionadaId)}
+                  disabled={versionesLoading}
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] disabled:opacity-60"
+                >
+                  <Clock3 size={12} /> {versionesLoading ? "Cargando..." : "Actualizar"}
+                </button>
+              </div>
+
+              <div className="max-h-56 space-y-2 overflow-auto pr-1">
+                {versionesCloud.length === 0 && !versionesLoading && (
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Sin versiones aun.</p>
+                )}
+                {versionesCloud.map((version) => (
+                  <div key={version.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-[0.15em] text-zinc-400">
+                        Version {version.createdAt ? new Date(version.createdAt).toLocaleString() : "SIN FECHA"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => restoreVersion(version.id)}
+                      className="inline-flex items-center gap-1 rounded-lg bg-amber-300 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.15em] text-black"
+                    >
+                      <RotateCcw size={11} /> Restaurar
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {versionesMessage && <p className="mt-3 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">{versionesMessage}</p>}
+            </div>
+          )}
         </section>
 
         <section className="print-card rounded-3xl border border-cyan-400/20 bg-black/65 p-6 shadow-xl backdrop-blur-xl">
