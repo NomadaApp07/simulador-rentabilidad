@@ -8,6 +8,9 @@ export const calcularMetricas = ({
   agua = 0,
   gas = 0,
   otros = 0,
+  costoProduccionPlato = 0,
+  utilidadObjetivo = 0,
+  cantidadPlatos = 0,
   foodCost = 0.35,
   ventasRealesMes = 0,
   modoEstres = false,
@@ -20,14 +23,25 @@ export const calcularMetricas = ({
   const nAgua = asNumber(agua);
   const nGas = asNumber(gas);
   const nOtros = asNumber(otros);
+  const nCostoPlato = asNumber(costoProduccionPlato);
+  const nUtilidadObjetivo = asNumber(utilidadObjetivo);
+  const nCantidadPlatos = asNumber(cantidadPlatos);
   const nVentasReales = asNumber(ventasRealesMes);
   const nCaidaVentas = asNumber(caidaVentas);
 
   const totalGastosFijos = nArriendo + nNominaFija + nNominaOcasional + nLuz + nAgua + nGas + nOtros;
-  const margenContribucionRelativo = 1 - asNumber(foodCost);
+  const foodCostSeguro = asNumber(foodCost);
+  const margenContribucionRelativo = 1 - foodCostSeguro;
   const margenSeguro = margenContribucionRelativo <= 0 ? 0.1 : margenContribucionRelativo;
   const ventasEquilibrio = totalGastosFijos / margenSeguro;
   const ventasParaAnalisis = nVentasReales > 0 ? nVentasReales : ventasEquilibrio;
+  const ventaSugeridaPlato = foodCostSeguro > 0 ? nCostoPlato / foodCostSeguro : 0;
+  const margenContribucionPlato = ventaSugeridaPlato - nCostoPlato;
+  const puntoEquilibrioPlatos = margenContribucionPlato > 0 ? Math.ceil(totalGastosFijos / margenContribucionPlato) : 0;
+  const platosParaUtilidadObjetivo = margenContribucionPlato > 0 ? Math.ceil((totalGastosFijos + nUtilidadObjetivo) / margenContribucionPlato) : 0;
+  const utilidadProyectadaEvento = (margenContribucionPlato * nCantidadPlatos) - totalGastosFijos;
+  const ventaProyectadaEvento = ventaSugeridaPlato * nCantidadPlatos;
+  const costoVariableTotalEvento = nCostoPlato * nCantidadPlatos;
 
   const pctNomina = (nNominaFija + nNominaOcasional) / (ventasParaAnalisis || 1);
   const pctArriendo = nArriendo / (ventasParaAnalisis || 1);
@@ -48,7 +62,14 @@ export const calcularMetricas = ({
     cumplimiento,
     utilidadReal,
     ventasEscenario,
-    presupuestoMP
+    presupuestoMP,
+    ventaSugeridaPlato,
+    margenContribucionPlato,
+    puntoEquilibrioPlatos,
+    platosParaUtilidadObjetivo,
+    utilidadProyectadaEvento,
+    ventaProyectadaEvento,
+    costoVariableTotalEvento
   };
 };
 

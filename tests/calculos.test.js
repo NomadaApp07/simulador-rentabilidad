@@ -62,3 +62,22 @@ test("genera alertas de nomina, arriendo y servicios", () => {
   assert.ok(alertas[1].includes("Arriendo costoso"));
   assert.ok(alertas[2].includes("Servicios elevados"));
 });
+
+test("calcula platos objetivo y utilidad proyectada de evento", () => {
+  const m = calcularMetricas({
+    arriendo: 1000000,
+    nominaFija: 1000000,
+    otros: 500000,
+    costoProduccionPlato: 10000,
+    foodCost: 0.4,
+    utilidadObjetivo: 3000000,
+    cantidadPlatos: 1000
+  });
+
+  assert.equal(Math.round(m.totalGastosFijos), 2500000);
+  assert.equal(Math.round(m.ventaSugeridaPlato), 25000);
+  assert.equal(Math.round(m.margenContribucionPlato), 15000);
+  assert.equal(m.puntoEquilibrioPlatos, Math.ceil(2500000 / 15000));
+  assert.equal(m.platosParaUtilidadObjetivo, Math.ceil((2500000 + 3000000) / 15000));
+  assert.equal(Math.round(m.utilidadProyectadaEvento), Math.round((15000 * 1000) - 2500000));
+});

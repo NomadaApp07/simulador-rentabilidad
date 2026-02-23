@@ -182,6 +182,8 @@ export default function App() {
   const [gas, setGas] = useState("");
   const [otros, setOtros] = useState("");
   const [costoProduccionPlato, setCostoProduccionPlato] = useState("10000");
+  const [utilidadObjetivo, setUtilidadObjetivo] = useState("");
+  const [cantidadPlatos, setCantidadPlatos] = useState("");
   const [foodCost, setFoodCost] = useState(0.35);
   const [ventasRealesMes, setVentasRealesMes] = useState("");
   const [modoEstres, setModoEstres] = useState(false);
@@ -201,11 +203,19 @@ export default function App() {
 
   const formatoCOP = useMemo(() => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }), []);
 
-  const payloadActual = { arriendo, nominaFija, nominaOcasional, luz, agua, gas, otros, costoProduccionPlato, foodCost, ventasRealesMes, modoEstres, caidaVentas };
+  const payloadActual = {
+    arriendo, nominaFija, nominaOcasional, luz, agua, gas, otros,
+    costoProduccionPlato, utilidadObjetivo, cantidadPlatos,
+    foodCost, ventasRealesMes, modoEstres, caidaVentas
+  };
 
   const metricas = calcularMetricas(payloadActual);
   const alertas = construirAlertas(metricas);
-  const { totalGastosFijos, ventasEquilibrio, cumplimiento, utilidadReal, presupuestoMP } = metricas;
+  const {
+    totalGastosFijos, ventasEquilibrio, cumplimiento, utilidadReal, presupuestoMP,
+    margenContribucionPlato, puntoEquilibrioPlatos, platosParaUtilidadObjetivo,
+    utilidadProyectadaEvento, ventaProyectadaEvento, costoVariableTotalEvento
+  } = metricas;
   const ventasRealesNum = asNumber(ventasRealesMes);
 
   const hydrateState = (payload) => {
@@ -218,6 +228,8 @@ export default function App() {
     setGas(payload.gas ?? "");
     setOtros(payload.otros ?? "");
     setCostoProduccionPlato(payload.costoProduccionPlato ?? "10000");
+    setUtilidadObjetivo(payload.utilidadObjetivo ?? "");
+    setCantidadPlatos(payload.cantidadPlatos ?? "");
     setFoodCost(payload.foodCost ?? 0.35);
     setVentasRealesMes(payload.ventasRealesMes ?? "");
     setModoEstres(Boolean(payload.modoEstres));
@@ -456,7 +468,11 @@ export default function App() {
     setNombreSimulacion("");
     setVersionesCloud([]);
     setVersionesMessage("");
-    hydrateState({ arriendo: "", nominaFija: "", nominaOcasional: "", luz: "", agua: "", gas: "", otros: "", costoProduccionPlato: "10000", foodCost: 0.35, ventasRealesMes: "", modoEstres: false, caidaVentas: 30 });
+    hydrateState({
+      arriendo: "", nominaFija: "", nominaOcasional: "", luz: "", agua: "", gas: "", otros: "",
+      costoProduccionPlato: "10000", utilidadObjetivo: "", cantidadPlatos: "",
+      foodCost: 0.35, ventasRealesMes: "", modoEstres: false, caidaVentas: 30
+    });
     setCloudMessage("Nueva simulacion en blanco.");
   };
 
@@ -504,7 +520,7 @@ export default function App() {
   useEffect(() => {
     if (!isAuthenticated) return;
     localStorage.setItem(APP_STATE_KEY, JSON.stringify(payloadActual));
-  }, [isAuthenticated, arriendo, nominaFija, nominaOcasional, luz, agua, gas, otros, costoProduccionPlato, foodCost, ventasRealesMes, modoEstres, caidaVentas]);
+  }, [isAuthenticated, arriendo, nominaFija, nominaOcasional, luz, agua, gas, otros, costoProduccionPlato, utilidadObjetivo, cantidadPlatos, foodCost, ventasRealesMes, modoEstres, caidaVentas]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -644,6 +660,66 @@ export default function App() {
             <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Modo Estres</p><button onClick={() => setModoEstres((prev) => !prev)} className={`rounded-xl px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${modoEstres ? "bg-red-500 text-white" : "bg-zinc-700 text-zinc-200"}`}>{modoEstres ? "Activo" : "Inactivo"}</button></div>
             {modoEstres && <div className="mt-3"><p className="mb-1 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Caida de ventas (%)</p><input type="range" min="5" max="80" value={caidaVentas} onChange={(e) => setCaidaVentas(Number(e.target.value))} className="w-full accent-red-500" /><p className="mt-1 text-right text-xs font-black text-red-300">{caidaVentas}%</p></div>}
           </div>
+        </section>
+
+        <section className="print-card rounded-3xl border border-cyan-400/25 bg-black/40 p-6 backdrop-blur-xl">
+          <h2 className="mb-4 border-l-4 border-cyan-400 pl-3 text-left text-sm font-black uppercase italic">Cotizacion de Evento</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="text-left">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Utilidad objetivo ($)</p>
+              <input
+                type="text"
+                value={utilidadObjetivo}
+                onChange={(e) => setUtilidadObjetivo(onlyNumbers(e.target.value))}
+                className="w-full border-b border-cyan-400/40 bg-transparent text-lg font-black text-white outline-none"
+                placeholder="0"
+              />
+            </div>
+            <div className="text-left">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Cantidad de platos</p>
+              <input
+                type="text"
+                value={cantidadPlatos}
+                onChange={(e) => setCantidadPlatos(onlyNumbers(e.target.value))}
+                className="w-full border-b border-cyan-400/40 bg-transparent text-lg font-black text-white outline-none"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {margenContribucionPlato <= 0 ? (
+            <div className="mt-4 rounded-2xl border border-red-500/35 bg-red-500/10 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-red-300">Margen por plato no viable</p>
+              <p className="mt-1 text-xs font-bold text-zinc-300">El precio sugerido no cubre el costo del plato. Ajusta costo o food cost objetivo.</p>
+            </div>
+          ) : (
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-left">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Punto Equilibrio</p>
+                <p className="text-xl font-black text-cyan-300">{puntoEquilibrioPlatos.toLocaleString()}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500">platos</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-left">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Platos Meta</p>
+                <p className="text-xl font-black text-amber-300">{platosParaUtilidadObjetivo.toLocaleString()}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500">con utilidad objetivo</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-left">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Utilidad Proyectada</p>
+                <p className={`text-xl font-black ${utilidadProyectadaEvento >= 0 ? "text-green-400" : "text-red-400"}`}>{formatoCOP.format(utilidadProyectadaEvento)}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500">segun cantidad</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-left">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Venta Evento</p>
+                <p className="text-xl font-black text-white">{formatoCOP.format(ventaProyectadaEvento)}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500">cotizacion total</p>
+              </div>
+            </div>
+          )}
+
+          <p className="mt-3 text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500">
+            Costo variable total: {formatoCOP.format(costoVariableTotalEvento)} | Margen por plato: {formatoCOP.format(margenContribucionPlato)}
+          </p>
         </section>
 
         <section className={`print-card rounded-[2.2rem] p-8 text-white shadow-2xl transition-all ${utilidadReal >= 0 && ventasRealesNum > 0 ? "bg-green-600" : "bg-amber-500"}`}>
