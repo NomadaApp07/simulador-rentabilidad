@@ -81,3 +81,20 @@ test("calcula platos objetivo y utilidad proyectada de evento", () => {
   assert.equal(m.platosParaUtilidadObjetivo, Math.ceil((2500000 + 3000000) / 15000));
   assert.equal(Math.round(m.utilidadProyectadaEvento), Math.round((15000 * 1000) - 2500000));
 });
+
+test("usa precio manual cuando esta activo", () => {
+  const m = calcularMetricas({
+    arriendo: 500000,
+    nominaFija: 500000,
+    costoProduccionPlato: 10000,
+    foodCost: 0.4,
+    precioVentaPlatoManual: 30000,
+    usarPrecioManual: true,
+    cantidadPlatos: 100
+  });
+
+  assert.equal(Math.round(m.ventaSugeridaPlato), 25000);
+  assert.equal(Math.round(m.precioVentaPlatoAplicado), 30000);
+  assert.equal(Math.round(m.margenContribucionPlato), 20000);
+  assert.equal(Math.round(m.ventaProyectadaEvento), 3000000);
+});

@@ -182,6 +182,8 @@ export default function App() {
   const [gas, setGas] = useState("");
   const [otros, setOtros] = useState("");
   const [costoProduccionPlato, setCostoProduccionPlato] = useState("10000");
+  const [precioVentaPlatoManual, setPrecioVentaPlatoManual] = useState("");
+  const [usarPrecioManual, setUsarPrecioManual] = useState(false);
   const [utilidadObjetivo, setUtilidadObjetivo] = useState("");
   const [cantidadPlatos, setCantidadPlatos] = useState("");
   const [foodCost, setFoodCost] = useState(0.35);
@@ -205,7 +207,7 @@ export default function App() {
 
   const payloadActual = {
     arriendo, nominaFija, nominaOcasional, luz, agua, gas, otros,
-    costoProduccionPlato, utilidadObjetivo, cantidadPlatos,
+    costoProduccionPlato, precioVentaPlatoManual, usarPrecioManual, utilidadObjetivo, cantidadPlatos,
     foodCost, ventasRealesMes, modoEstres, caidaVentas
   };
 
@@ -213,6 +215,7 @@ export default function App() {
   const alertas = construirAlertas(metricas);
   const {
     totalGastosFijos, ventasEquilibrio, cumplimiento, utilidadReal, presupuestoMP,
+    ventaSugeridaPlato, precioVentaPlatoAplicado,
     margenContribucionPlato, puntoEquilibrioPlatos, platosParaUtilidadObjetivo,
     utilidadProyectadaEvento, ventaProyectadaEvento, costoVariableTotalEvento
   } = metricas;
@@ -228,6 +231,8 @@ export default function App() {
     setGas(payload.gas ?? "");
     setOtros(payload.otros ?? "");
     setCostoProduccionPlato(payload.costoProduccionPlato ?? "10000");
+    setPrecioVentaPlatoManual(payload.precioVentaPlatoManual ?? "");
+    setUsarPrecioManual(Boolean(payload.usarPrecioManual));
     setUtilidadObjetivo(payload.utilidadObjetivo ?? "");
     setCantidadPlatos(payload.cantidadPlatos ?? "");
     setFoodCost(payload.foodCost ?? 0.35);
@@ -470,7 +475,7 @@ export default function App() {
     setVersionesMessage("");
     hydrateState({
       arriendo: "", nominaFija: "", nominaOcasional: "", luz: "", agua: "", gas: "", otros: "",
-      costoProduccionPlato: "10000", utilidadObjetivo: "", cantidadPlatos: "",
+      costoProduccionPlato: "10000", precioVentaPlatoManual: "", usarPrecioManual: false, utilidadObjetivo: "", cantidadPlatos: "",
       foodCost: 0.35, ventasRealesMes: "", modoEstres: false, caidaVentas: 30
     });
     setCloudMessage("Nueva simulacion en blanco.");
@@ -520,7 +525,7 @@ export default function App() {
   useEffect(() => {
     if (!isAuthenticated) return;
     localStorage.setItem(APP_STATE_KEY, JSON.stringify(payloadActual));
-  }, [isAuthenticated, arriendo, nominaFija, nominaOcasional, luz, agua, gas, otros, costoProduccionPlato, utilidadObjetivo, cantidadPlatos, foodCost, ventasRealesMes, modoEstres, caidaVentas]);
+  }, [isAuthenticated, arriendo, nominaFija, nominaOcasional, luz, agua, gas, otros, costoProduccionPlato, precioVentaPlatoManual, usarPrecioManual, utilidadObjetivo, cantidadPlatos, foodCost, ventasRealesMes, modoEstres, caidaVentas]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -654,7 +659,58 @@ export default function App() {
         <section className="print-card rounded-3xl border border-white/10 bg-black/40 p-6 backdrop-blur-xl">
           <h2 className="mb-4 border-l-4 border-amber-300 pl-3 text-left text-sm font-black uppercase italic">Food Cost Objetivo</h2>
           <div className="mb-4 flex rounded-2xl bg-white/5 p-1">{[0.3,0.35,0.4].map((p) => <button key={p} onClick={() => setFoodCost(p)} className={`flex-1 rounded-xl py-2 text-[10px] font-black transition-all ${foodCost === p ? "bg-cyan-500 text-black" : "text-zinc-400"}`}>{p*100}%</button>)}</div>
-          <div className="grid grid-cols-1 gap-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 sm:grid-cols-2"><div className="text-left"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Costo Plato</p><input type="text" value={costoProduccionPlato} onChange={(e) => setCostoProduccionPlato(onlyNumbers(e.target.value))} className="w-full border-b border-amber-300/40 bg-transparent text-lg font-black text-white outline-none" /></div><div className="text-right"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300">Venta Sugerida</p><p className="text-xl font-black text-white">{formatoCOP.format(asNumber(costoProduccionPlato) / foodCost)}</p></div></div>
+          <div className="grid grid-cols-1 gap-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 sm:grid-cols-2">
+            <div className="text-left">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Costo Plato</p>
+              <input
+                type="text"
+                value={costoProduccionPlato}
+                onChange={(e) => setCostoProduccionPlato(onlyNumbers(e.target.value))}
+                className="w-full border-b border-amber-300/40 bg-transparent text-lg font-black text-white outline-none"
+              />
+            </div>
+            <div className="text-right">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300">Venta Sugerida</p>
+              <p className="text-xl font-black text-white">{formatoCOP.format(ventaSugeridaPlato)}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
+            <div className="mb-3 flex rounded-xl bg-black/30 p-1">
+              <button
+                onClick={() => setUsarPrecioManual(false)}
+                className={`flex-1 rounded-lg py-2 text-[10px] font-black uppercase tracking-[0.16em] transition-all ${!usarPrecioManual ? "bg-cyan-500 text-black" : "text-zinc-300"}`}
+              >
+                Usar sugerido
+              </button>
+              <button
+                onClick={() => setUsarPrecioManual(true)}
+                className={`flex-1 rounded-lg py-2 text-[10px] font-black uppercase tracking-[0.16em] transition-all ${usarPrecioManual ? "bg-amber-300 text-black" : "text-zinc-300"}`}
+              >
+                Usar manual
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="text-left">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Precio manual por plato ($)</p>
+                <input
+                  type="text"
+                  value={precioVentaPlatoManual}
+                  onChange={(e) => setPrecioVentaPlatoManual(onlyNumbers(e.target.value))}
+                  disabled={!usarPrecioManual}
+                  className={`w-full border-b bg-transparent text-lg font-black text-white outline-none ${usarPrecioManual ? "border-amber-300/50" : "border-white/20 opacity-60"}`}
+                  placeholder="0"
+                />
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Precio aplicado</p>
+                <p className={`text-xl font-black ${usarPrecioManual ? "text-amber-300" : "text-cyan-300"}`}>
+                  {formatoCOP.format(precioVentaPlatoAplicado)}
+                </p>
+              </div>
+            </div>
+          </div>
 
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 no-print">
             <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Modo Estres</p><button onClick={() => setModoEstres((prev) => !prev)} className={`rounded-xl px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${modoEstres ? "bg-red-500 text-white" : "bg-zinc-700 text-zinc-200"}`}>{modoEstres ? "Activo" : "Inactivo"}</button></div>
@@ -718,7 +774,7 @@ export default function App() {
           )}
 
           <p className="mt-3 text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500">
-            Costo variable total: {formatoCOP.format(costoVariableTotalEvento)} | Margen por plato: {formatoCOP.format(margenContribucionPlato)}
+            Precio aplicado: {formatoCOP.format(precioVentaPlatoAplicado)} | Costo variable total: {formatoCOP.format(costoVariableTotalEvento)} | Margen por plato: {formatoCOP.format(margenContribucionPlato)}
           </p>
         </section>
 

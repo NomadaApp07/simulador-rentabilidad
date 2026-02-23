@@ -9,6 +9,8 @@ export const calcularMetricas = ({
   gas = 0,
   otros = 0,
   costoProduccionPlato = 0,
+  precioVentaPlatoManual = 0,
+  usarPrecioManual = false,
   utilidadObjetivo = 0,
   cantidadPlatos = 0,
   foodCost = 0.35,
@@ -24,6 +26,7 @@ export const calcularMetricas = ({
   const nGas = asNumber(gas);
   const nOtros = asNumber(otros);
   const nCostoPlato = asNumber(costoProduccionPlato);
+  const nPrecioManual = asNumber(precioVentaPlatoManual);
   const nUtilidadObjetivo = asNumber(utilidadObjetivo);
   const nCantidadPlatos = asNumber(cantidadPlatos);
   const nVentasReales = asNumber(ventasRealesMes);
@@ -36,11 +39,12 @@ export const calcularMetricas = ({
   const ventasEquilibrio = totalGastosFijos / margenSeguro;
   const ventasParaAnalisis = nVentasReales > 0 ? nVentasReales : ventasEquilibrio;
   const ventaSugeridaPlato = foodCostSeguro > 0 ? nCostoPlato / foodCostSeguro : 0;
-  const margenContribucionPlato = ventaSugeridaPlato - nCostoPlato;
+  const precioVentaPlatoAplicado = usarPrecioManual && nPrecioManual > 0 ? nPrecioManual : ventaSugeridaPlato;
+  const margenContribucionPlato = precioVentaPlatoAplicado - nCostoPlato;
   const puntoEquilibrioPlatos = margenContribucionPlato > 0 ? Math.ceil(totalGastosFijos / margenContribucionPlato) : 0;
   const platosParaUtilidadObjetivo = margenContribucionPlato > 0 ? Math.ceil((totalGastosFijos + nUtilidadObjetivo) / margenContribucionPlato) : 0;
   const utilidadProyectadaEvento = (margenContribucionPlato * nCantidadPlatos) - totalGastosFijos;
-  const ventaProyectadaEvento = ventaSugeridaPlato * nCantidadPlatos;
+  const ventaProyectadaEvento = precioVentaPlatoAplicado * nCantidadPlatos;
   const costoVariableTotalEvento = nCostoPlato * nCantidadPlatos;
 
   const pctNomina = (nNominaFija + nNominaOcasional) / (ventasParaAnalisis || 1);
@@ -64,6 +68,7 @@ export const calcularMetricas = ({
     ventasEscenario,
     presupuestoMP,
     ventaSugeridaPlato,
+    precioVentaPlatoAplicado,
     margenContribucionPlato,
     puntoEquilibrioPlatos,
     platosParaUtilidadObjetivo,
