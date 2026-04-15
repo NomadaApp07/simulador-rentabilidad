@@ -67,42 +67,34 @@ const CampoCostoDetallado = ({ label, valor, setValor, totalFijos, icono: Icono 
 };
 
 const LoginView = ({ onLogin }) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [userName, setUserName] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const VALID_CODES = ["demo", "admin", "nomada123", "user123"];
 
-  useEffect(() => {
-    const savedEmail = localStorage.getItem(EMAIL_KEY);
-    if (savedEmail) {
-      setEmail(savedEmail);
-      setRememberMe(true);
-    }
-  }, []);
-
-  const handleAuth = async (e) => {
+  const handleLogin = (e) => {
     e.preventDefault();
     if (loading) return;
-    setLoading(true);
     setError("");
-
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password: password.trim()
-    });
-
-    if (signInError) {
-      setError("Credenciales invalidas o usuario no confirmado.");
-      setPassword("");
-      setLoading(false);
+    
+    const name = userName.trim();
+    const code = accessCode.trim().toLowerCase();
+    
+    if (!name) {
+      setError("Ingresa tu nombre");
       return;
     }
-
-    if (rememberMe) localStorage.setItem(EMAIL_KEY, email.trim().toLowerCase());
-    else localStorage.removeItem(EMAIL_KEY);
-
-    setLoading(false);
+    
+    if (!VALID_CODES.includes(code)) {
+      setError("Código de acceso inválido");
+      setAccessCode("");
+      return;
+    }
+    
+    localStorage.setItem("nomada_user_name", name);
+    localStorage.setItem("nomada_auth_token", code);
+    
     onLogin();
   };
 
@@ -114,9 +106,9 @@ const LoginView = ({ onLogin }) => {
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-400">Nomada Ecosystem</p>
             <h2 className="mt-4 text-5xl font-black italic leading-[0.95]">Nomada<span className="text-amber-300">Elite</span></h2>
-            <p className="mt-5 max-w-[34ch] text-sm leading-relaxed text-zinc-400">Simulador de rentabilidad operativa conectado a tu stack de ingenieria gastronomica.</p>
+            <p className="mt-5 max-w-[34ch] text-sm leading-relaxed text-zinc-400">Simulador de rentabilidad operativa + gestor de recetas conectado a tu operacion.</p>
           </div>
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-red-400/90">Mientras ellos adivinan nosotros ejecutamos.</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-red-400/90">Códigos: demo • admin • nomada123 • user123</p>
         </section>
 
         <section className="p-8 sm:p-12">
@@ -125,39 +117,34 @@ const LoginView = ({ onLogin }) => {
             <span className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">Elite Access</span>
           </div>
 
-          <h1 className="mb-2 text-3xl font-black uppercase tracking-tight sm:text-4xl">Ingreso Seguro</h1>
-          <p className="mb-8 text-xs uppercase tracking-[0.25em] text-zinc-500">Simulador de Rentabilidad</p>
+          <h1 className="mb-2 text-3xl font-black uppercase tracking-tight sm:text-4xl">Acceso Rápido</h1>
+          <p className="mb-8 text-xs uppercase tracking-[0.25em] text-zinc-500">Nomada Elite Platform</p>
 
-          <form onSubmit={handleAuth} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div className="relative text-left">
               <User size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
-              <input type="email" required placeholder="Correo de acceso" value={email} onChange={(e) => setEmail(e.target.value)} className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.04] pl-12 pr-4 font-bold text-white outline-none transition-all focus:border-amber-300/70 focus:bg-amber-300/[0.04]" />
+              <input type="text" required placeholder="Tu nombre" value={userName} onChange={(e) => setUserName(e.target.value)} className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.04] pl-12 pr-4 font-bold text-white outline-none transition-all focus:border-amber-300/70 focus:bg-amber-300/[0.04]" />
             </div>
 
             <div className="relative text-left">
               <Key size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
-              <input type="password" required placeholder="Token de seguridad" value={password} onChange={(e) => setPassword(e.target.value)} className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.04] pl-12 pr-4 font-bold text-white outline-none transition-all focus:border-amber-300/70 focus:bg-amber-300/[0.04]" />
+              <input type="password" required placeholder="Código de acceso" value={accessCode} onChange={(e) => setAccessCode(e.target.value)} className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.04] pl-12 pr-4 font-bold text-white outline-none transition-all focus:border-amber-300/70 focus:bg-amber-300/[0.04]" />
             </div>
-
-            <label className="flex items-center gap-2 px-1">
-              <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="h-4 w-4 accent-amber-300" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Recordar correo</span>
-            </label>
 
             {error && <p className="pt-1 text-center text-[10px] font-black uppercase tracking-[0.25em] text-red-400">{error}</p>}
 
             <button disabled={loading} className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-300 to-amber-500 text-[11px] font-black uppercase tracking-[0.25em] text-black shadow-[0_12px_30px_rgba(251,191,36,0.3)] transition-all hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70">
-              {loading ? "Validando..." : "Entrar al Simulador"}
+              {loading ? "Validando..." : "Entrar"}
               <ArrowRight size={16} />
             </button>
           </form>
 
-          <a href="https://wa.me/573504562065?text=Hola,%20quiero%20adquirir%20Nomada%20Pro%20para%20mi%20negocio." target="_blank" rel="noreferrer" className="group mt-8 flex items-center justify-between rounded-3xl border border-white/10 bg-white/5 p-5 transition-all hover:bg-white/10">
+          <a href="https://wa.me/573504562065?text=Hola,%20quiero%20usar%20Nomada%20Elite." target="_blank" rel="noreferrer" className="group mt-8 flex items-center justify-between rounded-3xl border border-white/10 bg-white/5 p-5 transition-all hover:bg-white/10">
             <div className="flex items-center gap-4">
               <div className="rounded-2xl bg-amber-300/20 p-3 text-amber-300 transition-transform group-hover:scale-110"><Smartphone size={24} /></div>
               <div className="text-left">
-                <p className="mb-1 text-[10px] font-black uppercase leading-none text-amber-300">No tienes cuenta?</p>
-                <p className="text-sm font-bold italic">Adquirir Nomada Pro</p>
+                <p className="mb-1 text-[10px] font-black uppercase leading-none text-amber-300">Necesitas acceso?</p>
+                <p className="text-sm font-bold italic">Contactar al administrador</p>
               </div>
             </div>
             <ChevronRight size={20} className="text-zinc-500" />
@@ -172,6 +159,8 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [userId, setUserId] = useState("");
+  const [currentUserName, setCurrentUserName] = useState("");
+  const [currentModule, setCurrentModule] = useState("simulador");
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "dark");
 
   const [arriendo, setArriendo] = useState("");
@@ -484,26 +473,16 @@ export default function App() {
   const exportarPDF = () => window.print();
 
   useEffect(() => {
-    let mounted = true;
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      setIsAuthenticated(Boolean(session));
-      setUserId(session?.user?.id || "");
-      setAuthLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-      setIsAuthenticated(Boolean(session));
-      setUserId(session?.user?.id || "");
-      setAuthLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    // Check localStorage for authentication
+    const token = localStorage.getItem("nomada_auth_token");
+    const userName = localStorage.getItem("nomada_user_name");
+    
+    if (token && userName) {
+      setIsAuthenticated(true);
+      setCurrentUserName(userName);
+    }
+    
+    setAuthLoading(false);
   }, []);
 
   useEffect(() => {
@@ -539,10 +518,12 @@ export default function App() {
     loadSimulacionesCloud();
   }, [isAuthenticated]);
 
-  const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) console.error("No se pudo cerrar sesion", error);
+  const handleLogout = () => {
+    localStorage.removeItem("nomada_auth_token");
+    localStorage.removeItem("nomada_user_name");
     setIsAuthenticated(false);
+    setCurrentUserName("");
+    setCurrentModule("simulador");
   };
 
   if (authLoading) {
@@ -565,14 +546,37 @@ export default function App() {
         <header className="mb-2 flex items-center justify-between rounded-3xl border border-white/10 bg-black/40 p-4 backdrop-blur-xl no-print">
           <div>
             <h1 className="text-2xl font-black uppercase italic tracking-tight">Nomada<span className="text-cyan-400">Elite</span></h1>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Simulador Rentabilidad</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">{currentUserName} • {currentModule === "simulador" ? "Simulador" : "Recetas"}</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={exportarPDF} className="rounded-full border border-white/10 bg-white/5 p-2 text-zinc-200 transition-all hover:bg-cyan-500/20"><FileDown size={16} /></button>
             <button onClick={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))} className="rounded-full border border-white/10 bg-white/5 p-2 text-zinc-200 transition-all hover:bg-white/10">{theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}</button>
-            <button onClick={handleSignOut} className="rounded-full border border-white/10 bg-white/5 p-2 text-zinc-200 transition-all hover:bg-red-500/20"><Unlock size={16} /></button>
+            <button onClick={handleLogout} className="rounded-full border border-white/10 bg-white/5 p-2 text-zinc-200 transition-all hover:bg-red-500/20"><Unlock size={16} /></button>
           </div>
         </header>
+
+        <div className="mb-4 flex gap-2 no-print">
+          <button 
+            onClick={() => setCurrentModule("recetas")} 
+            className={`flex-1 rounded-2xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+              currentModule === "recetas" 
+                ? "bg-cyan-500 text-black" 
+                : "border border-white/10 bg-white/5 text-white hover:bg-white/10"
+            }`}
+          >
+            📝 Recetas
+          </button>
+          <button 
+            onClick={() => setCurrentModule("simulador")} 
+            className={`flex-1 rounded-2xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+              currentModule === "simulador" 
+                ? "bg-cyan-500 text-black" 
+                : "border border-white/10 bg-white/5 text-white hover:bg-white/10"
+            }`}
+          >
+            📊 Simulador
+          </button>
+        </div>
 
         <section className="rounded-3xl border border-white/10 bg-black/40 p-5 backdrop-blur-xl no-print">
           <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
