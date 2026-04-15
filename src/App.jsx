@@ -66,6 +66,117 @@ const CampoCostoDetallado = ({ label, valor, setValor, totalFijos, icono: Icono 
   );
 };
 
+const RecetasView = ({ theme }) => {
+  const [recetas, setRecetas] = useState(() => {
+    try {
+      const saved = localStorage.getItem("nomada_elite_recetas");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [nombre, setNombre] = useState("");
+  const [negocio, setNegocio] = useState("");
+  const [tipo, setTipo] = useState("receta");
+
+  const agregarReceta = (e) => {
+    e.preventDefault();
+    if (!nombre.trim() || !negocio.trim()) return;
+
+    const nuevaReceta = {
+      id: Date.now(),
+      nombre: nombre.trim(),
+      negocio: negocio.trim(),
+      tipo,
+      fecha: new Date().toLocaleDateString(),
+    };
+
+    const nuevasRecetas = [...recetas, nuevaReceta];
+    setRecetas(nuevasRecetas);
+    localStorage.setItem("nomada_elite_recetas", JSON.stringify(nuevasRecetas));
+
+    setNombre("");
+    setNegocio("");
+    setTipo("receta");
+  };
+
+  const eliminarReceta = (id) => {
+    const nuevasRecetas = recetas.filter((r) => r.id !== id);
+    setRecetas(nuevasRecetas);
+    localStorage.setItem("nomada_elite_recetas", JSON.stringify(nuevasRecetas));
+  };
+
+  const exportarCSV = () => {
+    if (recetas.length === 0) return;
+    const headers = ["Nombre", "Negocio", "Tipo", "Fecha"];
+    const rows = recetas.map((r) => [r.nombre, r.negocio, r.tipo, r.fecha]);
+    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `recetas-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className={`space-y-4 ${theme === "light" ? "text-slate-900" : "text-white"}`}>
+      <div className="rounded-3xl border border-white/10 bg-black/40 p-5 backdrop-blur-xl">
+        <form onSubmit={agregarReceta} className="space-y-3">
+          <p className="mb-4 text-sm font-black uppercase tracking-[0.2em]">Nueva Receta</p>
+
+          <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre de la receta" className={`w-full rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm font-bold outline-none focus:border-cyan-400/60`} />
+
+          <input value={negocio} onChange={(e) => setNegocio(e.target.value)} placeholder="Nombre del negocio" className={`w-full rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm font-bold outline-none focus:border-cyan-400/60`} />
+
+          <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={`w-full rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm font-bold outline-none`}>
+            <option value="receta">Receta</option>
+            <option value="venta">Venta</option>
+            <option value="inventario">Inventario</option>
+          </select>
+
+          <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black transition-all hover:bg-cyan-400">
+            <Plus size={14} /> Agregar
+          </button>
+        </form>
+      </div>
+
+      <div className="rounded-3xl border border-white/10 bg-black/40 p-5 backdrop-blur-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-sm font-black uppercase tracking-[0.2em]">Registros ({recetas.length})</p>
+          {recetas.length > 0 && (
+            <button onClick={exportarCSV} className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-black hover:bg-amber-400">
+              <FileDown size={12} /> Exportar
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-2 max-h-[400px] overflow-auto">
+          {recetas.length === 0 ? (
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Sin registros aún.</p>
+          ) : (
+            recetas.map((receta) => (
+              <div key={receta.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="text-left">
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em]">{receta.nombre}</p>
+                  <p className="text-[9px] text-zinc-400">{receta.negocio} • {receta.tipo}</p>
+                  <p className="text-[8px] text-zinc-500">{receta.fecha}</p>
+                </div>
+                <button onClick={() => eliminarReceta(receta.id)} className="rounded-lg border border-red-500/30 bg-red-500/15 p-2 text-red-300 transition-all hover:bg-red-500/25">
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const LoginView = ({ onLogin }) => {
   const [userName, setUserName] = useState("");
   const [accessCode, setAccessCode] = useState("");
@@ -578,6 +689,10 @@ export default function App() {
           </button>
         </div>
 
+        {currentModule === "recetas" ? (
+          <RecetasView theme={theme} />
+        ) : (
+          <>
         <section className="rounded-3xl border border-white/10 bg-black/40 p-5 backdrop-blur-xl no-print">
           <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
             <div>
@@ -790,6 +905,8 @@ export default function App() {
           <div className="flex items-center gap-3"><div className={`rounded-xl p-2 text-black ${alertas.length > 0 ? "animate-pulse bg-red-500" : "bg-amber-300"}`}><Activity size={20} /></div><div className="text-left"><p className="text-[10px] font-black uppercase leading-none text-amber-300">Consultoria Express</p><p className="text-xs font-bold italic">Hablar con mi asesor</p></div></div>
           <ChevronRight size={20} className="text-zinc-500" />
         </a>
+          </>
+        )}
       </div>
     </div>
   );
